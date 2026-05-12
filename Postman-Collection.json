@@ -1,0 +1,320 @@
+{
+  "info": {
+    "name": "School Management API",
+    "description": "Professional API Collection for School Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Verifies that the API server is running and responsive.\n\n**Status Codes:**\n- 200: Server is healthy and running\n\n**Use Case:** Monitoring, load balancer health checks, continuous integration"
+      },
+      "response": []
+    },
+    {
+      "name": "Add School",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Pre-request script to validate coordinates are within valid ranges",
+              "console.log('Adding new school...');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test script to validate response",
+              "pm.test('School added successfully', function () {",
+              "    pm.expect(pm.response.code).to.be.oneOf([201, 200]);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.equal(true);",
+              "    pm.expect(jsonData.schoolId).to.be.a('number');",
+              "    ",
+              "    // Save the school ID for later use",
+              "    pm.environment.set('lastSchoolId', jsonData.schoolId);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Delhi Public School\",\n  \"address\": \"123 Education Lane, New Delhi, India\",\n  \"latitude\": 28.5355,\n  \"longitude\": 77.2030\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/addSchool",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "addSchool"
+          ]
+        },
+        "description": "Adds a new school to the database.\n\n**Request Body:**\n- name (string, required): School name (2-100 characters)\n- address (string, required): Complete address (5-200 characters)\n- latitude (number, required): Geographic latitude (-90 to 90)\n- longitude (number, required): Geographic longitude (-180 to 180)\n\n**Response (201 Created):**\n- success (boolean): Whether the operation was successful\n- message (string): Confirmation message\n- schoolId (number): ID of newly created school\n\n**Error Response (400 Bad Request):**\n- Occurs when validation fails\n- Returns array of validation errors\n\n**Use Case:** Registering new schools in the system"
+      },
+      "response": []
+    },
+    {
+      "name": "List Schools (All)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Schools retrieved successfully', function () {",
+              "    pm.expect(pm.response.code).to.equal(200);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.equal(true);",
+              "    pm.expect(jsonData.schools).to.be.an('array');",
+              "    ",
+              "    // Verify distance calculation",
+              "    if (jsonData.schools.length > 0) {",
+              "        jsonData.schools.forEach(function(school) {",
+              "            pm.expect(school.distance).to.be.a('number');",
+              "            pm.expect(school.distance).to.be.at.least(0);",
+              "        });",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/listSchools?latitude=40.7128&longitude=-74.0060",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "listSchools"
+          ],
+          "query": [
+            {
+              "key": "latitude",
+              "value": "40.7128",
+              "description": "User's latitude (New York example)"
+            },
+            {
+              "key": "longitude",
+              "value": "-74.0060",
+              "description": "User's longitude (New York example)"
+            }
+          ]
+        },
+        "description": "Retrieves all schools sorted by proximity to the user's location.\n\n**Query Parameters:**\n- latitude (number, required): User's latitude coordinate (-90 to 90)\n- longitude (number, required): User's longitude coordinate (-180 to 180)\n\n**Response (200 OK):**\n- success (boolean): Whether operation was successful\n- message (string): Response message\n- userLocation (object): Echo of user's coordinates\n- totalSchools (number): Total number of schools\n- schools (array): Array of schools with distance information\n  - Each school includes: id, name, address, latitude, longitude, distance (in km)\n\n**Distance Information:**\n- Calculated using Haversine formula\n- Represents great-circle distance on Earth\n- Returns distance in kilometers\n- Schools sorted by distance (nearest first)\n\n**Error Response (400 Bad Request):**\n- Invalid latitude or longitude\n- Out-of-range coordinates\n\n**Use Case:** Find schools near user, sorting by proximity, location-based queries"
+      },
+      "response": []
+    },
+    {
+      "name": "List Schools (Mumbai Location)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Response status is 200', function () {",
+              "    pm.expect(pm.response.code).to.equal(200);",
+              "});",
+              "",
+              "pm.test('Schools are sorted by distance', function () {",
+              "    var jsonData = pm.response.json();",
+              "    var schools = jsonData.schools;",
+              "    ",
+              "    for (let i = 1; i < schools.length; i++) {",
+              "        pm.expect(schools[i].distance).to.be.at.least(schools[i-1].distance);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/listSchools?latitude=19.0760&longitude=72.8777",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "listSchools"
+          ],
+          "query": [
+            {
+              "key": "latitude",
+              "value": "19.0760",
+              "description": "Mumbai latitude"
+            },
+            {
+              "key": "longitude",
+              "value": "72.8777",
+              "description": "Mumbai longitude"
+            }
+          ]
+        },
+        "description": "Example: Retrieve schools sorted by proximity to Mumbai, India coordinates."
+      },
+      "response": []
+    },
+    {
+      "name": "Invalid Request - Missing Parameters",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Request validation error', function () {",
+              "    pm.expect(pm.response.code).to.equal(400);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.equal(false);",
+              "    pm.expect(jsonData.errors).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/listSchools",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "listSchools"
+          ]
+        },
+        "description": "Example of error handling: Missing required latitude and longitude parameters.\n\n**Expected Response (400 Bad Request):**\n- Explains what parameters are required\n- Lists all validation errors"
+      },
+      "response": []
+    },
+    {
+      "name": "Invalid Request - Out of Range Coordinates",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Coordinate validation error', function () {",
+              "    pm.expect(pm.response.code).to.equal(400);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.equal(false);",
+              "    pm.expect(jsonData.errors[0]).to.include('between');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/listSchools?latitude=91&longitude=200",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "listSchools"
+          ],
+          "query": [
+            {
+              "key": "latitude",
+              "value": "91",
+              "description": "Invalid - latitude must be -90 to 90"
+            },
+            {
+              "key": "longitude",
+              "value": "200",
+              "description": "Invalid - longitude must be -180 to 180"
+            }
+          ]
+        },
+        "description": "Example of coordinate validation: Demonstrates error handling when coordinates are outside valid geographic ranges."
+      },
+      "response": []
+    },
+    {
+      "name": "Invalid Request - Missing School Data",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('School data validation error', function () {",
+              "    pm.expect(pm.response.code).to.equal(400);",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.equal(false);",
+              "    pm.expect(jsonData.errors).to.be.an('array');",
+              "    pm.expect(jsonData.errors.length).to.be.greaterThan(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"School\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/addSchool",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "addSchool"
+          ]
+        },
+        "description": "Example of request validation: Missing required fields (address, latitude, longitude).\n\n**Expected Response (400 Bad Request):**\n- Lists all missing required fields"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string",
+      "description": "Base URL of the API server. Update this to your deployment URL in production."
+    }
+  ]
+}
