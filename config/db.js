@@ -45,14 +45,26 @@ const connectionPool = mysql.createPool({
  * It's called on server startup to ensure the database is accessible
  * If this fails, there's no point starting the API server
  */
-async function testDatabaseConnection() {
-  try {
-    const connection = await connectionPool.getConnection();
-    console.log('✓ Database connection successful');
-    connection.release();
-  } catch (error) {
-    console.error('✗ Database connection failed:', error.message);
-    process.exit(1); // Exit application if database connection fails
+async function testDatabaseConnection(retries = 5, delay = 5000) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const connection = await connectionPool.getConnection();
+      console.log('✓ Database connection successful');
+      connection.release();
+      return;
+    } catch (error) {
+      console.error(
+        `✗ Database connection attempt ${attempt}/${retries} failed: ${error.message}`
+      );
+      if (attempt < retries) {
+        console.log(`  ↻ Retrying in ${delay / 1000}s...`);
+        await new Promise((r) => setTimeout(r, delay));
+      } else {
+        console.error(
+          '✗ All database connection attempts exhausted. Server will keep running but DB queries will fail until MySQL is reachable.'
+        );
+      }
+    }
   }
 }
 
